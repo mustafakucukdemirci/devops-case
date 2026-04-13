@@ -1,0 +1,75 @@
+services:
+
+  # ── MongoDB ────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: sample_training
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Express API ────────────────────────────────────────────────────────────
+  server:
+    build:
+      context: ./mern-project/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ATLAS_URI: mongodb://mongodb:27017/sample_training
+      NODE_ENV: production
+    ports:
+      - "5050:5050"
+    networks:
+      - backend-net
+      - frontend-net
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # ── React Frontend ─────────────────────────────────────────────────────────
+  client:
+    build:
+      context: ./mern-project/client
+      dockerfile: Dockerfile
+      args:
+        # Port exposed to host — browser reaches server directly in local dev
+        REACT_APP_API_URL: "http://localhost:5050"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - frontend-net
+    depends_on:
+      - server
+
+  # ── Python ETL Job ─────────────────────────────────────────────────────────
+  # Not started by default; trigger manually: docker compose --profile etl run python-etl
+  python-etl:
+    build:
+      context: ./python-project
+      dockerfile: Dockerfile
+    profiles:
+      - etl
+    networks:
+      - backend-net
+
+
+volumes:
+  mongo_data:
+    driver: local
+
+
+networks:
+  backend-net:
+    driver: bridge
+  frontend-net:
+    driver: bridge

@@ -1,0 +1,86 @@
+name: MERN CI
+
+on:
+  pull_request:
+    paths:
+      - "mern-project/**"
+      - ".github/workflows/ci-mern.yml"
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "mern-project/**"
+
+jobs:
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-latest
+
+    # Real MongoDB — no mocks, catches connection/query issues early
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping').ok\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: mern-project/server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mern-project/server
+        run: npm ci
+
+      - name: Run tests
+        working-directory: mern-project/server
+        env:
+          ATLAS_URI: mongodb://localhost:27017/sample_training_test
+          NODE_ENV: test
+        run: npm test
+
+  build-client:
+    name: Client Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: mern-project/client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mern-project/client
+        run: npm ci
+
+      - name: Build
+        working-directory: mern-project/client
+        env:
+          REACT_APP_API_URL: ""
+        run: npm run build
+
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: [test-server, build-client]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build server image
+        run: docker build -t mern-server:ci mern-project/server
+
+      - name: Build client image
+        run: docker build --build-arg REACT_APP_API_URL="" -t mern-client:ci mern-project/client

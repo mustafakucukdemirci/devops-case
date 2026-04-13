@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: python-etl
+  namespace: mern-app
+spec:
+  schedule: "0 * * * *"
+  # If a run is still going when the next one fires, skip the new one
+  concurrencyPolicy: Forbid
+  # Keep last 3 successful and 1 failed job for log inspection
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      # Hard deadline — don't let a hung job block the next scheduled run
+      activeDeadlineSeconds: 3300
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: python-etl
+              image: ${ECR_REGISTRY}/python-etl:${IMAGE_TAG}
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "256Mi"

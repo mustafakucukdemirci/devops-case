@@ -1,0 +1,20 @@
+# Terraform — local provider cache and state; state lives in S3
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+
+# Node
+node_modules/
+mern-project/client/build/
+mern-project/server/.env
+
+# Python
+__pycache__/
+*.pyc
+python-project/.env
+
+# OS
+.DS_Store
+Thumbs.db

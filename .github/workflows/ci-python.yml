@@ -1,0 +1,45 @@
+name: Python ETL CI
+
+on:
+  pull_request:
+    paths:
+      - "python-project/**"
+      - ".github/workflows/ci-python.yml"
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "python-project/**"
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: python-project/requirements.txt
+
+      - name: Install dependencies
+        working-directory: python-project
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: python-project
+        run: pytest tests/ -v
+
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ETL image
+        run: docker build -t python-etl:ci python-project

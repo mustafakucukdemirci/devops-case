@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: mern-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: server
+  # Zero-downtime rollout: bring up new pods before terminating old ones
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      # Spread pods across availability zones for HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: server
+
+      containers:
+        - name: server
+          # CI/CD substitutes IMAGE_TAG at deploy time
+          image: ${ECR_REGISTRY}/mern-server:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5050
+
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: ATLAS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: server-secrets
+                  key: ATLAS_URI
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5050
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5050
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+          # Graceful shutdown — lets in-flight requests complete before pod exits
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+
+      terminationGracePeriodSeconds: 30

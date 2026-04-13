@@ -1,0 +1,47 @@
+name: Python ETL CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "python-project/**"
+      - "k8s/python-etl/**"
+      - ".github/workflows/cd-python.yml"
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+
+jobs:
+  deploy:
+    name: Build → Push → Update CronJob
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::8}" >> $GITHUB_ENV
+
+      - name: Build and push
+        run: |
+          docker build -t $ECR_REGISTRY/python-etl:$IMAGE_TAG python-project
+          docker push $ECR_REGISTRY/python-etl:$IMAGE_TAG
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+
+      - name: Deploy CronJob
+        run: envsubst < k8s/python-etl/cronjob.yaml | kubectl apply -f -

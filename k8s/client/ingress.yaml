@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mern-ingress
+  namespace: mern-app
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
+    # Uncomment and set ACM_CERT_ARN secret to enable HTTPS + redirect
+    # alb.ingress.kubernetes.io/certificate-arn: "${ACM_CERT_ARN}"
+    # alb.ingress.kubernetes.io/ssl-redirect: "443"
+  labels:
+    app: mern-ingress
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          # API routes — must come before the React catch-all
+          - path: /record
+            pathType: Prefix
+            backend:
+              service:
+                name: server
+                port:
+                  number: 5050
+          - path: /healthcheck
+            pathType: Prefix
+            backend:
+              service:
+                name: server
+                port:
+                  number: 5050
+          # React SPA — handles all other routes client-side
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: client
+                port:
+                  number: 80
