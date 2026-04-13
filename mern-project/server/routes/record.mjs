@@ -4,59 +4,77 @@ import { ObjectId } from "mongodb";
 
 const router = express.Router();
 
-// This section will help you get a list of all the records.
+// GET /record — full collection
 router.get("/", async (req, res) => {
-  let collection = await db.collection("records");
-  let results = await collection.find({}).toArray();
-  res.send(results).status(200);
+  const collection = await db.collection("records");
+  const results = await collection.find({}).toArray();
+  res.status(200).json(results);
 });
 
-// This section will help you get a single record by id
+// GET /record/:id — single document
 router.get("/:id", async (req, res) => {
-  let collection = await db.collection("records");
-  let query = {_id: new ObjectId(req.params.id)};
-  let result = await collection.findOne(query);
+  let oid;
+  try {
+    oid = new ObjectId(req.params.id);
+  } catch {
+    return res.status(400).json({ error: "Invalid id format" });
+  }
 
-  if (!result) res.send("Not found").status(404);
-  else res.send(result).status(200);
+  const collection = await db.collection("records");
+  const result = await collection.findOne({ _id: oid });
+
+  if (!result) return res.status(404).json({ error: "Not found" });
+  res.status(200).json(result);
 });
 
-// This section will help you create a new record.
+// POST /record — insert new document
 router.post("/", async (req, res) => {
-  let newDocument = {
-    name: req.body.name,
-    position: req.body.position,
-    level: req.body.level,
-  };
-  let collection = await db.collection("records");
-  let result = await collection.insertOne(newDocument);
-  res.send(result).status(204);
+  const { name, position, level } = req.body;
+
+  if (!name || !position || !level) {
+    return res.status(400).json({ error: "name, position and level are required" });
+  }
+
+  const collection = await db.collection("records");
+  await collection.insertOne({ name, position, level });
+  res.status(204).end();
 });
 
-// This section will help you update a record by id.
+// PATCH /record/:id — partial update
 router.patch("/:id", async (req, res) => {
-  const query = { _id: new ObjectId(req.params.id) };
-  const updates =  {
-    $set: {
-      name: req.body.name,
-      position: req.body.position,
-      level: req.body.level
-    }
-  };
+  let oid;
+  try {
+    oid = new ObjectId(req.params.id);
+  } catch {
+    return res.status(400).json({ error: "Invalid id format" });
+  }
 
-  let collection = await db.collection("records");
-  let result = await collection.updateOne(query, updates);
-  res.send(result).status(200);
+  const updates = {};
+  for (const field of ["name", "position", "level"]) {
+    if (req.body[field] !== undefined) updates[field] = req.body[field];
+  }
+
+  const collection = await db.collection("records");
+  const result = await collection.updateOne({ _id: oid }, { $set: updates });
+
+  if (result.matchedCount === 0) return res.status(404).json({ error: "Not found" });
+  res.status(200).json(result);
 });
 
-// This section will help you delete a record
+// DELETE /record/:id — remove document
 router.delete("/:id", async (req, res) => {
-  const query = { _id: new ObjectId(req.params.id) };
+  let oid;
+  try {
+    oid = new ObjectId(req.params.id);
+  } catch {
+    return res.status(400).json({ error: "Invalid id format" });
+  }
 
-  const collection = db.collection("records");
-  let result = await collection.deleteOne(query);
+  const collection = await db.collection("records");
+  const result = await collection.deleteOne({ _id: oid });
 
-  res.send(result).status(200);
+  if (result.deletedCount === 0) return res.status(404).json({ error: "Not found" });
+  res.status(200).json(result);
 });
 
 export default router;
