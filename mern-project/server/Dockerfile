@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY package*.json ./
 # ci ensures lockfile-exact installs; --omit=dev strips devDependencies
-RUN npm ci --omit=dev --silent
+RUN npm ci --omit=dev
 
 
 # ── Stage 2: production runtime ─────────────────────────────────────────────
