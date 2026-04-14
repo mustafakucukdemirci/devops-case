@@ -20,7 +20,6 @@ Proje http://k8s-mernapp-merningr-0484b880f5-58312156.us-east-1.elb.amazonaws.co
 Grafana üzerinden prometheus'u test ve kontrol için bu adres kullanılmalıdır:
 http://a9a3294639282486fbc7871cee8310e4-1178655096.us-east-1.elb.amazonaws.com/dashboards
 
-Kullanıcı adı: `admin` Şifre: `Admin1234!`
 
 | Alan | Yapı |
 |---|---|
