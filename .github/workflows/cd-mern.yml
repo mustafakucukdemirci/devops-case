@@ -108,8 +108,11 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
 
-      # envsubst replaces ${ECR_REGISTRY} and ${IMAGE_TAG} in deployment manifests
+      # envsubst replaces ${ECR_REGISTRY}, ${IMAGE_TAG}, ${MONGO_USERNAME}, ${MONGO_PASSWORD}
       - name: Deploy to EKS
+        env:
+          MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
+          MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
         run: |
           kubectl apply -f k8s/namespace.yaml
 

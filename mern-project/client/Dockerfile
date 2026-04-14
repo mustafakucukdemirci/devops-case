@@ -21,6 +21,6 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # React Router için tüm route'ları index.html'e yönlendir
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

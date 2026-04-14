@@ -8,7 +8,6 @@ spec:
   selector:
     matchLabels:
       app: server
-  # Zero-downtime rollout: bring up new pods before terminating old ones
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,7 +18,6 @@ spec:
       labels:
         app: server
     spec:
-      # Spread pods across availability zones for HA
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
@@ -28,13 +26,27 @@ spec:
             matchLabels:
               app: server
 
+      # Matches UID/GID created in the Dockerfile
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
         - name: server
-          # CI/CD substitutes IMAGE_TAG at deploy time
           image: ${ECR_REGISTRY}/mern-server:${IMAGE_TAG}
           imagePullPolicy: Always
           ports:
             - containerPort: 5050
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
 
           env:
             - name: NODE_ENV
@@ -71,7 +83,6 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 2
 
-          # Graceful shutdown — lets in-flight requests complete before pod exits
           lifecycle:
             preStop:
               exec:

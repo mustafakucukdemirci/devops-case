@@ -14,7 +14,6 @@ spec:
       labels:
         app: mongodb
     spec:
-      # Prevent MongoDB from landing on the same node as another MongoDB pod
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -27,14 +26,38 @@ spec:
                       values: [mongodb]
                 topologyKey: kubernetes.io/hostname
 
+      # mongo:7.0 runs as mongodb (UID 999) — fsGroup ensures /data/db is writable
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+
       containers:
         - name: mongodb
           image: mongo:7.0
           ports:
             - containerPort: 27017
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # MongoDB writes to /data/db and /tmp
+            capabilities:
+              drop: ["ALL"]
+
           env:
             - name: MONGO_INITDB_DATABASE
               value: sample_training
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: MONGO_USERNAME
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: MONGO_PASSWORD
 
           resources:
             requests:
@@ -47,10 +70,12 @@ spec:
           livenessProbe:
             exec:
               command:
-                - mongosh
-                - --quiet
-                - --eval
-                - "db.adminCommand('ping').ok"
+                - /bin/sh
+                - -c
+                - |
+                  mongosh --username "$MONGO_INITDB_ROOT_USERNAME" \
+                          --password "$MONGO_INITDB_ROOT_PASSWORD" \
+                          --quiet --eval "db.adminCommand('ping').ok"
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -59,10 +84,12 @@ spec:
           readinessProbe:
             exec:
               command:
-                - mongosh
-                - --quiet
-                - --eval
-                - "db.adminCommand('ping').ok"
+                - /bin/sh
+                - -c
+                - |
+                  mongosh --username "$MONGO_INITDB_ROOT_USERNAME" \
+                          --password "$MONGO_INITDB_ROOT_PASSWORD" \
+                          --quiet --eval "db.adminCommand('ping').ok"
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
@@ -71,13 +98,12 @@ spec:
             - name: mongo-storage
               mountPath: /data/db
 
-  # PVC template — StatefulSet provisions one PVC per pod; survives pod restarts
   volumeClaimTemplates:
     - metadata:
         name: mongo-storage
       spec:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: gp3  # AWS EBS gp3 — provisioned by EKS StorageClass
+        storageClassName: gp3
         resources:
           requests:
             storage: 10Gi
