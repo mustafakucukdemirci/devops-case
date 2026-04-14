@@ -17,7 +17,19 @@ python-project/.env
 
 # Local documentation — not for repo
 SYSTEM_DOCS.md
+DevOps_Case_Report.docx
+report_gen.py
+
+# Claude Code local data
+.claude/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+
+# Local files
+result.png
+Case*Metni*.txt
