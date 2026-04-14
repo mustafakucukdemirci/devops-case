@@ -80,6 +80,8 @@ spec:
               mountPath: /var/run
             - name: tmp
               mountPath: /tmp
+            - name: nginx-log
+              mountPath: /var/log/nginx
 
       volumes:
         - name: nginx-cache
@@ -87,4 +89,6 @@ spec:
         - name: nginx-run
           emptyDir: {}
         - name: tmp
+          emptyDir: {}
+        - name: nginx-log
           emptyDir: {}
